@@ -1,0 +1,128 @@
+name: Collect SEO Bot IPs
+
+on:
+  schedule:
+    # Run every 4 hours for more frequent updates
+    - cron: '0 */4 * * *'
+    # Also run daily at 2 AM UTC for main collection
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+  push:
+    branches: [ master ]
+    paths:
+      - 'seobot_collector.py'
+      - 'bot_sources.yaml'
+      - 'requirements.txt'
+
+jobs:
+  collect-ips:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dnsutils
+    
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Create output directory
+      run: mkdir -p output
+    
+    - name: Run IP collection
+      run: python seobot_collector.py
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        git add output/
+        if git diff --cached --quiet; then
+          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        else
+          echo "changes=true" >> $GITHUB_OUTPUT
+          echo "Changes detected"
+        fi
+    
+    - name: Commit and push changes
+      if: steps.changes.outputs.changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add output/
+        git commit -m "Update SEO bot IP ranges - $(date -u '+%Y-%m-%d %H:%M UTC')"
+        git push
+    
+    - name: Create release on significant changes
+      if: steps.changes.outputs.changes == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = JSON.parse(fs.readFileSync('output/summary.json', 'utf8'));
+          
+          const tagName = `v${new Date().toISOString().split('T')[0]}`;
+          const releaseName = `SEO Bot IPs - ${tagName}`;
+          
+          const releaseBody = `
+          ## SEO Bot IP Ranges Update
+          
+          **Updated:** ${summary.updated}
+          
+          ### Statistics
+          - IPv4 Networks: ${summary.total_ipv4_networks}
+          - IPv6 Networks: ${summary.total_ipv6_networks}
+          - Total Networks: ${summary.total_networks || summary.total_ipv4_networks + summary.total_ipv6_networks}
+          - IPv4 Individual IPs: ${summary.total_ipv4_individual}
+          - IPv6 Individual IPs: ${summary.total_ipv6_individual}
+          - Total Individual IPs: ${summary.total_individual_ips || summary.total_ipv4_individual + summary.total_ipv6_individual}
+          
+          ### Sources (${summary.sources.length} total)
+          ${summary.sources.map(s => `- ${s}`).join('\n')}
+          
+          ### Files
+          - \`output/all_ranges.txt\` - 🔥 **All networks combined** (IPv4 + IPv6 CIDR)
+          - \`output/all_ips.txt\` - 🔥 **All individual IPs combined** (IPv4 + IPv6)
+          - \`output/ipv4_cidr.txt\` - IPv4 networks in CIDR format
+          - \`output/ipv6_cidr.txt\` - IPv6 networks in CIDR format  
+          - \`output/ipv4_individual.txt\` - Individual IPv4 addresses (small networks only)
+          - \`output/ipv6_individual.txt\` - Individual IPv6 addresses (small networks only)
+          - \`output/summary.json\` - Collection summary and statistics
+          `;
+          
+          try {
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: releaseName,
+              body: releaseBody,
+              draft: false,
+              prerelease: false
+            });
+            console.log(`Created release ${tagName}`);
+          } catch (error) {
+            console.log(`Release creation failed: ${error.message}`);
+            // Don't fail the workflow if release creation fails
+          }
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: seo-bot-ips
+        path: output/
+        retention-days: 30

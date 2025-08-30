@@ -1,0 +1,28 @@
+{
+  "updated": "2025-08-31T03:22:15.932413",
+  "total_ipv4_networks": 287,
+  "total_ipv6_networks": 122,
+  "total_networks": 409,
+  "total_ipv4_individual": 12287,
+  "total_ipv6_individual": 116,
+  "total_individual_ips": 12403,
+  "sources": [
+    "googlebot",
+    "bingbot",
+    "semrush",
+    "ahrefs",
+    "mj12bot",
+    "uptimerobot",
+    "checkhost",
+    "coccocbot",
+    "duckduckbot",
+    "yahoobot",
+    "yandexbot",
+    "baidubot",
+    "applebot",
+    "twitterbot",
+    "facebookbot",
+    "linkedinbot",
+    "sogoubot"
+  ]
+}
