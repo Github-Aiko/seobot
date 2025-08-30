@@ -23,6 +23,10 @@ class SEOBotCollector:
         self.ipv4_networks = set()
         self.ipv6_networks = set()
         
+        # Raw networks (before merging)
+        self.raw_ipv4_networks = []
+        self.raw_ipv6_networks = []
+        
     def log(self, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] {message}")
@@ -186,8 +190,10 @@ class SEOBotCollector:
                 if network:
                     if network.version == 4:
                         self.ipv4_networks.add(network)
+                        self.raw_ipv4_networks.append(network)  # Keep raw version
                     else:
                         self.ipv6_networks.add(network)
+                        self.raw_ipv6_networks.append(network)  # Keep raw version
             
             self.log(f"Collected {len(ranges)} ranges from {source_config['name']}")
         
@@ -238,20 +244,34 @@ class SEOBotCollector:
         """Write output files in different formats"""
         os.makedirs('output', exist_ok=True)
         
-        # IPv4 CIDR format
+        # IPv4 CIDR format (merged)
         ipv4_cidrs = sorted([str(net) for net in self.ipv4_networks])
         with open('output/ipv4_cidr.txt', 'w') as f:
             f.write('\n'.join(ipv4_cidrs) + '\n')
         
-        # IPv6 CIDR format  
+        # IPv6 CIDR format (merged)
         ipv6_cidrs = sorted([str(net) for net in self.ipv6_networks])
         with open('output/ipv6_cidr.txt', 'w') as f:
             f.write('\n'.join(ipv6_cidrs) + '\n')
         
-        # All ranges combined (IPv4 + IPv6 CIDR)
+        # All ranges combined (IPv4 + IPv6 CIDR) - merged
         all_ranges = sorted(ipv4_cidrs + ipv6_cidrs)
         with open('output/all_ranges.txt', 'w') as f:
             f.write('\n'.join(all_ranges) + '\n')
+        
+        # RAW UNMERGED versions
+        all_raw_ipv4 = sorted(list(set([str(net) for net in self.raw_ipv4_networks])))
+        all_raw_ipv6 = sorted(list(set([str(net) for net in self.raw_ipv6_networks])))
+        all_raw_ranges = sorted(all_raw_ipv4 + all_raw_ipv6)
+        
+        with open('output/all_ranges_raw.txt', 'w') as f:
+            f.write('\n'.join(all_raw_ranges) + '\n')
+        
+        with open('output/ipv4_cidr_raw.txt', 'w') as f:
+            f.write('\n'.join(all_raw_ipv4) + '\n')
+        
+        with open('output/ipv6_cidr_raw.txt', 'w') as f:
+            f.write('\n'.join(all_raw_ipv6) + '\n')
         
         # IPv4 individual IPs (for small networks only)
         ipv4_ips = self.generate_individual_ips(self.ipv4_networks)
@@ -284,9 +304,12 @@ class SEOBotCollector:
             json.dump(summary, f, indent=2)
         
         self.log(f"Output written to files:")
-        self.log(f"  - IPv4 CIDR: {len(ipv4_cidrs)} networks")
-        self.log(f"  - IPv6 CIDR: {len(ipv6_cidrs)} networks")
-        self.log(f"  - All Ranges: {len(all_ranges)} total networks")
+        self.log(f"  - IPv4 CIDR (merged): {len(ipv4_cidrs)} networks")
+        self.log(f"  - IPv6 CIDR (merged): {len(ipv6_cidrs)} networks")
+        self.log(f"  - All Ranges (merged): {len(all_ranges)} total networks")
+        self.log(f"  - IPv4 CIDR (raw): {len(all_raw_ipv4)} networks")
+        self.log(f"  - IPv6 CIDR (raw): {len(all_raw_ipv6)} networks")
+        self.log(f"  - All Ranges (raw): {len(all_raw_ranges)} total networks")
         self.log(f"  - IPv4 Individual: {len(ipv4_ips)} IPs")
         self.log(f"  - IPv6 Individual: {len(ipv6_ips)} IPs")
         self.log(f"  - All IPs: {len(all_ips)} total IPs")
