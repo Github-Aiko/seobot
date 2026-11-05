@@ -1,11 +1,11 @@
 {
-  "updated": "2026-11-05T11:53:32.978101",
-  "total_ipv4_networks": 320,
+  "updated": "2026-11-05T19:32:37.037465",
+  "total_ipv4_networks": 321,
   "total_ipv6_networks": 119,
-  "total_networks": 439,
-  "total_ipv4_individual": 12274,
+  "total_networks": 440,
+  "total_ipv4_individual": 12290,
   "total_ipv6_individual": 103,
-  "total_individual_ips": 12377,
+  "total_individual_ips": 12393,
   "sources": [
     "googlebot",
     "bingbot",
